@@ -6,17 +6,18 @@
     <title>Multiplication Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* A minimalist style inspired by Apple's Human Interface Guidelines and Material Design */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }
-        .option-button {
+        .btn {
             transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
         }
-        .option-button:active, .option-button.active-key {
+        .btn:active {
             transform: scale(0.98);
+        }
+        .option-button.active-key {
             background-color: #d1d5db; /* gray-300 */
         }
     </style>
@@ -24,103 +25,127 @@
 <body class="bg-gray-100 text-gray-900 flex items-center justify-center min-h-screen p-4">
 
 <main class="w-full max-w-md">
-    <div id="game-view">
+    <div id="level-selection-view">
+        <div class="bg-white p-8 sm:p-10 rounded-2xl shadow-lg text-center">
+            <h1 class="text-2xl font-bold text-gray-800 mb-6">Select a Level</h1>
+            <div class="grid grid-cols-1 gap-4">
+                <button data-level="easy" class="btn w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl">Easy</button>
+                <button data-level="mid" class="btn w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 rounded-xl">Mid</button>
+                <button data-level="hard" class="btn w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl">Hard</button>
+                <button data-level="full" class="btn w-full bg-gray-700 hover:bg-gray-800 text-white font-bold py-3 rounded-xl">Full</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-view" class="hidden">
         <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-lg text-center">
             <div class="flex justify-between items-baseline mb-2 text-gray-500 text-sm">
                 <div>PROGRESS: <span id="progress" class="font-bold text-lg text-gray-800">0 / 20</span></div>
                 <div>TIME: <span id="timer" class="font-bold text-lg text-gray-800">5</span>s</div>
             </div>
             <hr class="mb-6">
-
             <div class="mb-8 min-h-[64px] flex items-center justify-center">
                 <p id="problem" class="text-5xl font-light tracking-tight"></p>
             </div>
-
-            <div id="options-container" class="grid grid-cols-1 gap-3 sm:gap-4">
-            </div>
-
+            <div id="options-container" class="grid grid-cols-1 gap-3 sm:gap-4"></div>
             <div class="mt-6 h-7">
                 <p id="feedback-text" class="text-lg font-medium"></p>
             </div>
         </div>
         <div class="text-center mt-4 text-gray-500 text-sm">
-            High Score: <span id="high-score-display" class="font-semibold"></span>
+            High Score (<span id="game-level-display" class="capitalize"></span>): <span id="high-score-display" class="font-semibold"></span>
         </div>
     </div>
 
     <div id="results-view" class="hidden">
         <div class="bg-white p-8 sm:p-10 rounded-2xl shadow-lg text-center">
             <h2 class="text-2xl font-bold text-gray-800 mb-2">Round Complete!</h2>
-            <p class="text-gray-600 mb-4">Here's how you did:</p>
-
+            <p class="text-gray-600 mb-4">Level: <span id="results-level" class="font-semibold capitalize"></span></p>
             <div class="bg-gray-50 rounded-xl p-4 mb-5">
-                <div class="text-4xl font-bold text-blue-600">
-                    <span id="final-score">0</span> / 20
-                </div>
-                <div class="text-sm text-gray-500 mt-1">
-                    Total Time: <span id="final-time">0.0</span>s
-                </div>
+                <div class="text-4xl font-bold text-blue-600"><span id="final-score">0</span> / 20</div>
+                <div class="text-sm text-gray-500 mt-1">Total Time: <span id="final-time">0.0</span>s</div>
             </div>
-
-            <div id="new-high-score-banner" class="hidden bg-green-100 text-green-800 font-semibold p-3 rounded-lg mb-5">
-                🎉 New High Score!
+            <div id="new-high-score-banner" class="hidden bg-green-100 text-green-800 font-semibold p-3 rounded-lg mb-5">🎉 New High Score!</div>
+            <p class="text-gray-500 text-sm">High Score: <span id="final-high-score-display" class="font-semibold"></span></p>
+            <div class="mt-6 flex flex-col gap-3">
+                <button id="play-again-button" class="btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl">Play Again</button>
+                <button id="change-level-button" class="btn w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 rounded-xl">Change Level</button>
             </div>
-
-            <p class="text-gray-500 text-sm">
-                Current High Score: <span id="final-high-score-display" class="font-semibold"></span>
-            </p>
-
-            <button id="play-again-button" class="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors">
-                Play Again
-            </button>
         </div>
     </div>
 </main>
 
 <script>
     // DOM Elements
+    const levelSelectionView = document.getElementById('level-selection-view');
     const gameView = document.getElementById('game-view');
     const resultsView = document.getElementById('results-view');
+    // ... (other element queries)
     const progressEl = document.getElementById('progress');
     const timerEl = document.getElementById('timer');
     const problemEl = document.getElementById('problem');
     const optionsContainer = document.getElementById('options-container');
     const feedbackTextEl = document.getElementById('feedback-text');
+    const gameLevelDisplay = document.getElementById('game-level-display');
     const highScoreDisplay = document.getElementById('high-score-display');
     const finalScoreEl = document.getElementById('final-score');
     const finalTimeEl = document.getElementById('final-time');
+    const resultsLevelEl = document.getElementById('results-level');
     const finalHighScoreDisplay = document.getElementById('final-high-score-display');
     const newHighScoreBanner = document.getElementById('new-high-score-banner');
     const playAgainButton = document.getElementById('play-again-button');
+    const changeLevelButton = document.getElementById('change-level-button');
 
     // Game Constants
     const TOTAL_PROBLEMS = 20;
     const TIME_PER_QUESTION = 5;
+    const LEVEL_NUMBERS = {
+        easy: [2, 3, 4],
+        mid: [3, 5, 9, 10],
+        hard: [4, 6, 7, 8, 9],
+        full: [2, 3, 4, 5, 6, 7, 8, 9, 10]
+    };
 
     // Game State
+    let currentLevel = 'easy';
     let currentProblemNumber = 0;
     let correctAnswers = 0;
     let totalTimeElapsed = 0;
     let isAcceptingInput = false;
     let currentCorrectAnswer = 0;
     let timerInterval;
-    let timeLeft = TIME_PER_QUESTION;
-    let highScore = { accuracy: 0, time: Infinity };
+    let highScores = {};
 
-    // --- Game Flow ---
+    // --- Game Flow & Initialization ---
+
+    function init() {
+        loadHighScores();
+        levelSelectionView.classList.remove('hidden');
+        gameView.classList.add('hidden');
+        resultsView.classList.add('hidden');
+
+        levelSelectionView.querySelectorAll('button').forEach(button => {
+            button.onclick = () => {
+                currentLevel = button.dataset.level;
+                startGame();
+            };
+        });
+        playAgainButton.addEventListener('click', startGame);
+        changeLevelButton.addEventListener('click', init);
+        document.addEventListener('keydown', handleKeyPress);
+    }
 
     function startGame() {
-        // Reset state
         currentProblemNumber = 0;
         correctAnswers = 0;
         totalTimeElapsed = 0;
 
-        // Update UI
+        levelSelectionView.classList.add('hidden');
         resultsView.classList.add('hidden');
         newHighScoreBanner.classList.add('hidden');
         gameView.classList.remove('hidden');
-        loadHighScore(); // Load and display high score at the start
 
+        updateHighScoreUI();
         newProblem();
     }
 
@@ -136,14 +161,13 @@
         // 1. Reset UI
         feedbackTextEl.textContent = '';
         optionsContainer.innerHTML = '';
-        timeLeft = TIME_PER_QUESTION;
-        timerEl.textContent = timeLeft;
         progressEl.textContent = `${currentProblemNumber} / ${TOTAL_PROBLEMS}`;
         timerEl.classList.remove('text-red-500', 'font-extrabold');
 
-        // 2. Generate problem
-        const num1 = Math.floor(Math.random() * 11) + 2; // 2-12
-        const num2 = Math.floor(Math.random() * 11) + 2; // 2-12
+        // 2. Generate problem based on level
+        const availableNumbers = LEVEL_NUMBERS[currentLevel];
+        const num1 = availableNumbers[Math.floor(Math.random() * availableNumbers.length)];
+        const num2 = availableNumbers[Math.floor(Math.random() * availableNumbers.length)];
         currentCorrectAnswer = num1 * num2;
         problemEl.textContent = `${num1} × ${num2}`;
 
@@ -152,7 +176,7 @@
         while (options.size < 5) {
             const wrongAnswerOffset = (Math.floor(Math.random() * 21) - 10) || 1;
             const wrongAnswer = currentCorrectAnswer + wrongAnswerOffset;
-            if (wrongAnswer > 0) options.add(wrongAnswer);
+            if (wrongAnswer > 0 && wrongAnswer !== currentCorrectAnswer) options.add(wrongAnswer);
         }
         const shuffledOptions = Array.from(options).sort(() => Math.random() - 0.5);
 
@@ -160,12 +184,11 @@
             const button = document.createElement('button');
             button.innerHTML = `<span class="text-gray-400 mr-2 text-sm">${index + 1}</span> ${option}`;
             button.dataset.value = option;
-            button.classList.add('option-button', 'w-full', 'bg-gray-100', 'hover:bg-gray-200', 'text-gray-700', 'font-semibold', 'text-left', 'py-3', 'px-4', 'rounded-xl', 'focus:outline-none');
+            button.classList.add('option-button', 'btn', 'w-full', 'bg-gray-100', 'hover:bg-gray-200', 'text-gray-700', 'font-semibold', 'text-left', 'py-3', 'px-4', 'rounded-xl', 'focus:outline-none');
             button.onclick = () => selectAnswer(option, button);
             optionsContainer.appendChild(button);
         });
 
-        // 4. Start timer
         startTimer();
     }
 
@@ -174,28 +197,28 @@
         isAcceptingInput = false;
 
         clearInterval(timerInterval);
-        const timeTaken = TIME_PER_QUESTION - timeLeft;
+        const timeTaken = TIME_PER_QUESTION - (timerInterval ? parseFloat(timerEl.dataset.timeLeft) : 0);
         totalTimeElapsed += timeTaken;
 
         const isCorrect = selectedAnswer === currentCorrectAnswer;
         if (isCorrect) correctAnswers++;
 
-        // Visual feedback
         const buttons = optionsContainer.querySelectorAll('button');
         buttons.forEach(btn => {
             btn.disabled = true;
             const btnValue = parseInt(btn.dataset.value);
             if (btnValue === currentCorrectAnswer) {
-                btn.classList.remove('bg-gray-100', 'hover:bg-gray-200');
                 btn.classList.add('bg-green-500', 'text-white');
-            } else if (btn === selectedButton) {
                 btn.classList.remove('bg-gray-100', 'hover:bg-gray-200');
+            } else if (btn === selectedButton) {
                 btn.classList.add('bg-red-500', 'text-white');
+                btn.classList.remove('bg-gray-100', 'hover:bg-gray-200');
             }
         });
 
         feedbackTextEl.textContent = `Correct answer: ${currentCorrectAnswer}`;
-        feedbackTextEl.classList.add(isCorrect ? 'text-green-600' : 'text-red-600');
+        feedbackTextEl.classList.toggle('text-green-600', isCorrect);
+        feedbackTextEl.classList.toggle('text-red-600', !isCorrect);
 
         setTimeout(newProblem, 1500);
     }
@@ -205,73 +228,77 @@
         resultsView.classList.remove('hidden');
 
         finalScoreEl.textContent = correctAnswers;
-        finalTimeEl.textContent = (totalTimeElapsed).toFixed(1);
+        finalTimeEl.textContent = totalTimeElapsed.toFixed(1);
+        resultsLevelEl.textContent = currentLevel;
 
         checkAndSaveHighScore();
     }
 
-    // --- Timer and High Score Logic ---
+    // --- Timer, High Score, and Event Handlers ---
 
     function startTimer() {
+        let timeLeft = TIME_PER_QUESTION;
+        timerEl.textContent = timeLeft;
+        timerEl.dataset.timeLeft = timeLeft;
         timerInterval = setInterval(() => {
             timeLeft -= 0.1;
+            timerEl.dataset.timeLeft = timeLeft;
             timerEl.textContent = Math.ceil(timeLeft);
             if (timeLeft <= 2) timerEl.classList.add('text-red-500', 'font-extrabold');
-            if (timeLeft <= 0) selectAnswer(null, null); // Time's up
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                timerInterval = null; // Mark as cleared
+                selectAnswer(null, null);
+            }
         }, 100);
     }
 
-    function loadHighScore() {
-        const storedScore = JSON.parse(localStorage.getItem('multiplicationHighScore'));
-        if (storedScore) {
-            highScore = storedScore;
-        }
-        updateHighScoreUI();
+    function loadHighScores() {
+        const storedScores = JSON.parse(localStorage.getItem('multiplicationHighScores'));
+        highScores = storedScores || {};
     }
 
     function checkAndSaveHighScore() {
         const currentAccuracy = correctAnswers;
         const currentTime = totalTimeElapsed;
+        const levelHighScore = highScores[currentLevel] || { accuracy: 0, time: Infinity };
 
-        // New high score if accuracy is higher, or if accuracy is same and time is lower
-        if (currentAccuracy > highScore.accuracy || (currentAccuracy === highScore.accuracy && currentTime < highScore.time)) {
-            highScore = { accuracy: currentAccuracy, time: currentTime };
-            localStorage.setItem('multiplicationHighScore', JSON.stringify(highScore));
+        if (currentAccuracy > levelHighScore.accuracy || (currentAccuracy === levelHighScore.accuracy && currentTime < levelHighScore.time)) {
+            highScores[currentLevel] = { accuracy: currentAccuracy, time: currentTime };
+            localStorage.setItem('multiplicationHighScores', JSON.stringify(highScores));
             newHighScoreBanner.classList.remove('hidden');
         }
         updateHighScoreUI();
     }
 
     function updateHighScoreUI() {
-        if (highScore.accuracy > 0) {
-            const scoreText = `${highScore.accuracy}/${TOTAL_PROBLEMS} in ${highScore.time.toFixed(1)}s`;
+        gameLevelDisplay.textContent = currentLevel;
+        const levelHighScore = highScores[currentLevel];
+        if (levelHighScore) {
+            const scoreText = `${levelHighScore.accuracy}/${TOTAL_PROBLEMS} in ${levelHighScore.time.toFixed(1)}s`;
             highScoreDisplay.textContent = scoreText;
             finalHighScoreDisplay.textContent = scoreText;
         } else {
-            highScoreDisplay.textContent = 'N/A';
-            finalHighScoreDisplay.textContent = 'N/A';
+            const text = 'N/A';
+            highScoreDisplay.textContent = text;
+            finalHighScoreDisplay.textContent = text;
         }
     }
-
-    // --- Event Listeners ---
 
     function handleKeyPress(e) {
         if (isAcceptingInput && e.key >= '1' && e.key <= '5') {
             const keyIndex = parseInt(e.key) - 1;
             const buttons = optionsContainer.querySelectorAll('button');
             if (buttons[keyIndex]) {
-                buttons[keyIndex].classList.add('active-key'); // Visual press effect
+                buttons[keyIndex].classList.add('active-key');
+                setTimeout(() => buttons[keyIndex].classList.remove('active-key'), 100);
                 const answerValue = parseInt(buttons[keyIndex].dataset.value);
                 selectAnswer(answerValue, buttons[keyIndex]);
             }
         }
     }
 
-    document.addEventListener('keydown', handleKeyPress);
-    playAgainButton.addEventListener('click', startGame);
-
-    // --- Initial Load ---
-    startGame();
+    init(); // Start the app
 </script>
 </body>
 </html>
