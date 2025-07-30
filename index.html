@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplication Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* A minimalist style inspired by Apple's Human Interface Guidelines and Material Design */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* Adding a subtle transition for a smoother feel when clicking buttons */
+        .option-button {
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+        }
+        .option-button:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 flex items-center justify-center min-h-screen">
+
+<div id="game-container" class="bg-white p-6 sm:p-8 rounded-2xl shadow-lg w-full max-w-md text-center">
+
+    <div class="flex justify-between items-center mb-6 text-gray-500 text-sm">
+        <div>SCORE: <span id="score" class="font-bold text-lg text-gray-800">0</span></div>
+        <div>TIME: <span id="timer" class="font-bold text-lg text-gray-800">5</span>s</div>
+    </div>
+
+    <hr class="mb-6">
+
+    <div id="problem-container" class="mb-8 min-h-[64px] flex items-center justify-center">
+        <p id="problem" class="text-5xl font-light tracking-tight"></p>
+    </div>
+
+    <div id="options-container" class="grid grid-cols-1 gap-3 sm:gap-4">
+    </div>
+
+    <div id="feedback-container" class="mt-6 h-7">
+        <p id="feedback-text" class="text-lg font-medium"></p>
+    </div>
+
+</div>
+
+<script>
+    // DOM Elements
+    const scoreEl = document.getElementById('score');
+    const timerEl = document.getElementById('timer');
+    const problemEl = document.getElementById('problem');
+    const optionsContainer = document.getElementById('options-container');
+    const feedbackTextEl = document.getElementById('feedback-text');
+
+    // Game State
+    let score = 0;
+    let currentCorrectAnswer = 0;
+    let timerInterval;
+    let timeLeft = 5;
+
+    /**
+     * Generates a random integer between min and max (inclusive).
+     */
+    function generateRandomNumber(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    /**
+     * Sets up a new multiplication problem.
+     */
+    function newProblem() {
+        // 1. Reset UI from the previous round
+        feedbackTextEl.textContent = '';
+        optionsContainer.innerHTML = '';
+        timeLeft = 5;
+        timerEl.textContent = timeLeft;
+        timerEl.classList.remove('text-red-500', 'font-extrabold');
+
+        // 2. Generate two random numbers for the problem
+        const num1 = generateRandomNumber(2, 12);
+        const num2 = generateRandomNumber(2, 12);
+        currentCorrectAnswer = num1 * num2;
+        problemEl.textContent = `${num1} × ${num2}`;
+
+        // 3. Generate a set of unique answer options, including the correct one
+        const options = new Set([currentCorrectAnswer]);
+        while (options.size < 5) {
+            const wrongAnswerOffset = generateRandomNumber(-10, 10) || 1; // Ensure offset is not 0
+            const wrongAnswer = currentCorrectAnswer + wrongAnswerOffset;
+            if (wrongAnswer > 0) {
+                options.add(wrongAnswer);
+            }
+        }
+
+        // 4. Shuffle options and create buttons
+        const shuffledOptions = Array.from(options).sort(() => Math.random() - 0.5);
+        shuffledOptions.forEach(option => {
+            const button = document.createElement('button');
+            button.textContent = option;
+            button.classList.add('option-button', 'w-full', 'bg-gray-100', 'hover:bg-gray-200', 'text-gray-700', 'font-semibold', 'py-3', 'px-4', 'rounded-xl', 'focus:outline-none', 'focus:ring-2', 'focus:ring-blue-400');
+            button.onclick = () => selectAnswer(option, button);
+            optionsContainer.appendChild(button);
+        });
+
+        // 5. Start the timer for the new question
+        startTimer();
+    }
+
+    /**
+     * Starts the 5-second countdown timer.
+     */
+    function startTimer() {
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            timerEl.textContent = timeLeft;
+            if (timeLeft < 3) {
+                timerEl.classList.add('text-red-500', 'font-extrabold');
+            }
+            if (timeLeft === 0) {
+                selectAnswer(null, null); // Time's up
+            }
+        }, 1000);
+    }
+
+    /**
+     * Handles the user's answer selection or a timeout.
+     */
+    function selectAnswer(selectedAnswer, selectedButton) {
+        clearInterval(timerInterval); // Stop the timer immediately
+
+        const isCorrect = selectedAnswer === currentCorrectAnswer;
+
+        // Disable all buttons and show correct/incorrect states
+        const buttons = optionsContainer.querySelectorAll('button');
+        buttons.forEach(btn => {
+            btn.disabled = true;
+            btn.classList.add('cursor-not-allowed', 'opacity-75');
+
+            // Highlight the correct answer in green
+            if (parseInt(btn.textContent) === currentCorrectAnswer) {
+                btn.classList.remove('bg-gray-100', 'hover:bg-gray-200');
+                btn.classList.add('bg-green-500', 'text-white');
+            }
+        });
+
+        if (isCorrect) {
+            score++;
+            scoreEl.textContent = score;
+            feedbackTextEl.textContent = "Correct! 🎉";
+            feedbackTextEl.classList.add('text-green-600');
+            feedbackTextEl.classList.remove('text-red-600');
+        } else {
+            if(selectedButton) { // If an incorrect answer was clicked
+                selectedButton.classList.remove('bg-gray-100');
+                selectedButton.classList.add('bg-red-500', 'text-white');
+                feedbackTextEl.textContent = `Correct answer: ${currentCorrectAnswer}`;
+            } else { // If the time ran out
+                feedbackTextEl.textContent = `Time's up! Answer: ${currentCorrectAnswer}`;
+            }
+            feedbackTextEl.classList.add('text-red-600');
+            feedbackTextEl.classList.remove('text-green-600');
+        }
+
+        // Wait 2 seconds before showing the next problem
+        setTimeout(newProblem, 2000);
+    }
+
+    // Initial call to start the game
+    newProblem();
+</script>
+</body>
+</html>
