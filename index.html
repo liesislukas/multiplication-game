@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multiplication Game</title>
+    <title>Multiplication Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* A minimalist style inspired by Apple's Human Interface Guidelines and Material Design */
@@ -12,162 +12,266 @@
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }
-        /* Adding a subtle transition for a smoother feel when clicking buttons */
         .option-button {
             transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
         }
-        .option-button:active {
+        .option-button:active, .option-button.active-key {
             transform: scale(0.98);
+            background-color: #d1d5db; /* gray-300 */
         }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-900 flex items-center justify-center min-h-screen">
+<body class="bg-gray-100 text-gray-900 flex items-center justify-center min-h-screen p-4">
 
-<div id="game-container" class="bg-white p-6 sm:p-8 rounded-2xl shadow-lg w-full max-w-md text-center">
+<main class="w-full max-w-md">
+    <div id="game-view">
+        <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-lg text-center">
+            <div class="flex justify-between items-baseline mb-2 text-gray-500 text-sm">
+                <div>PROGRESS: <span id="progress" class="font-bold text-lg text-gray-800">0 / 20</span></div>
+                <div>TIME: <span id="timer" class="font-bold text-lg text-gray-800">5</span>s</div>
+            </div>
+            <hr class="mb-6">
 
-    <div class="flex justify-between items-center mb-6 text-gray-500 text-sm">
-        <div>SCORE: <span id="score" class="font-bold text-lg text-gray-800">0</span></div>
-        <div>TIME: <span id="timer" class="font-bold text-lg text-gray-800">5</span>s</div>
+            <div class="mb-8 min-h-[64px] flex items-center justify-center">
+                <p id="problem" class="text-5xl font-light tracking-tight"></p>
+            </div>
+
+            <div id="options-container" class="grid grid-cols-1 gap-3 sm:gap-4">
+            </div>
+
+            <div class="mt-6 h-7">
+                <p id="feedback-text" class="text-lg font-medium"></p>
+            </div>
+        </div>
+        <div class="text-center mt-4 text-gray-500 text-sm">
+            High Score: <span id="high-score-display" class="font-semibold"></span>
+        </div>
     </div>
 
-    <hr class="mb-6">
+    <div id="results-view" class="hidden">
+        <div class="bg-white p-8 sm:p-10 rounded-2xl shadow-lg text-center">
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Round Complete!</h2>
+            <p class="text-gray-600 mb-4">Here's how you did:</p>
 
-    <div id="problem-container" class="mb-8 min-h-[64px] flex items-center justify-center">
-        <p id="problem" class="text-5xl font-light tracking-tight"></p>
+            <div class="bg-gray-50 rounded-xl p-4 mb-5">
+                <div class="text-4xl font-bold text-blue-600">
+                    <span id="final-score">0</span> / 20
+                </div>
+                <div class="text-sm text-gray-500 mt-1">
+                    Total Time: <span id="final-time">0.0</span>s
+                </div>
+            </div>
+
+            <div id="new-high-score-banner" class="hidden bg-green-100 text-green-800 font-semibold p-3 rounded-lg mb-5">
+                🎉 New High Score!
+            </div>
+
+            <p class="text-gray-500 text-sm">
+                Current High Score: <span id="final-high-score-display" class="font-semibold"></span>
+            </p>
+
+            <button id="play-again-button" class="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors">
+                Play Again
+            </button>
+        </div>
     </div>
-
-    <div id="options-container" class="grid grid-cols-1 gap-3 sm:gap-4">
-    </div>
-
-    <div id="feedback-container" class="mt-6 h-7">
-        <p id="feedback-text" class="text-lg font-medium"></p>
-    </div>
-
-</div>
+</main>
 
 <script>
     // DOM Elements
-    const scoreEl = document.getElementById('score');
+    const gameView = document.getElementById('game-view');
+    const resultsView = document.getElementById('results-view');
+    const progressEl = document.getElementById('progress');
     const timerEl = document.getElementById('timer');
     const problemEl = document.getElementById('problem');
     const optionsContainer = document.getElementById('options-container');
     const feedbackTextEl = document.getElementById('feedback-text');
+    const highScoreDisplay = document.getElementById('high-score-display');
+    const finalScoreEl = document.getElementById('final-score');
+    const finalTimeEl = document.getElementById('final-time');
+    const finalHighScoreDisplay = document.getElementById('final-high-score-display');
+    const newHighScoreBanner = document.getElementById('new-high-score-banner');
+    const playAgainButton = document.getElementById('play-again-button');
+
+    // Game Constants
+    const TOTAL_PROBLEMS = 20;
+    const TIME_PER_QUESTION = 5;
 
     // Game State
-    let score = 0;
+    let currentProblemNumber = 0;
+    let correctAnswers = 0;
+    let totalTimeElapsed = 0;
+    let isAcceptingInput = false;
     let currentCorrectAnswer = 0;
     let timerInterval;
-    let timeLeft = 5;
+    let timeLeft = TIME_PER_QUESTION;
+    let highScore = { accuracy: 0, time: Infinity };
 
-    /**
-     * Generates a random integer between min and max (inclusive).
-     */
-    function generateRandomNumber(min, max) {
-        return Math.floor(Math.random() * (max - min + 1)) + min;
+    // --- Game Flow ---
+
+    function startGame() {
+        // Reset state
+        currentProblemNumber = 0;
+        correctAnswers = 0;
+        totalTimeElapsed = 0;
+
+        // Update UI
+        resultsView.classList.add('hidden');
+        newHighScoreBanner.classList.add('hidden');
+        gameView.classList.remove('hidden');
+        loadHighScore(); // Load and display high score at the start
+
+        newProblem();
     }
 
-    /**
-     * Sets up a new multiplication problem.
-     */
     function newProblem() {
-        // 1. Reset UI from the previous round
+        if (currentProblemNumber >= TOTAL_PROBLEMS) {
+            endGame();
+            return;
+        }
+
+        currentProblemNumber++;
+        isAcceptingInput = true;
+
+        // 1. Reset UI
         feedbackTextEl.textContent = '';
         optionsContainer.innerHTML = '';
-        timeLeft = 5;
+        timeLeft = TIME_PER_QUESTION;
         timerEl.textContent = timeLeft;
+        progressEl.textContent = `${currentProblemNumber} / ${TOTAL_PROBLEMS}`;
         timerEl.classList.remove('text-red-500', 'font-extrabold');
 
-        // 2. Generate two random numbers for the problem
-        const num1 = generateRandomNumber(2, 12);
-        const num2 = generateRandomNumber(2, 12);
+        // 2. Generate problem
+        const num1 = Math.floor(Math.random() * 11) + 2; // 2-12
+        const num2 = Math.floor(Math.random() * 11) + 2; // 2-12
         currentCorrectAnswer = num1 * num2;
         problemEl.textContent = `${num1} × ${num2}`;
 
-        // 3. Generate a set of unique answer options, including the correct one
+        // 3. Generate and display options
         const options = new Set([currentCorrectAnswer]);
         while (options.size < 5) {
-            const wrongAnswerOffset = generateRandomNumber(-10, 10) || 1; // Ensure offset is not 0
+            const wrongAnswerOffset = (Math.floor(Math.random() * 21) - 10) || 1;
             const wrongAnswer = currentCorrectAnswer + wrongAnswerOffset;
-            if (wrongAnswer > 0) {
-                options.add(wrongAnswer);
-            }
+            if (wrongAnswer > 0) options.add(wrongAnswer);
         }
-
-        // 4. Shuffle options and create buttons
         const shuffledOptions = Array.from(options).sort(() => Math.random() - 0.5);
-        shuffledOptions.forEach(option => {
+
+        shuffledOptions.forEach((option, index) => {
             const button = document.createElement('button');
-            button.textContent = option;
-            button.classList.add('option-button', 'w-full', 'bg-gray-100', 'hover:bg-gray-200', 'text-gray-700', 'font-semibold', 'py-3', 'px-4', 'rounded-xl', 'focus:outline-none', 'focus:ring-2', 'focus:ring-blue-400');
+            button.innerHTML = `<span class="text-gray-400 mr-2 text-sm">${index + 1}</span> ${option}`;
+            button.dataset.value = option;
+            button.classList.add('option-button', 'w-full', 'bg-gray-100', 'hover:bg-gray-200', 'text-gray-700', 'font-semibold', 'text-left', 'py-3', 'px-4', 'rounded-xl', 'focus:outline-none');
             button.onclick = () => selectAnswer(option, button);
             optionsContainer.appendChild(button);
         });
 
-        // 5. Start the timer for the new question
+        // 4. Start timer
         startTimer();
     }
 
-    /**
-     * Starts the 5-second countdown timer.
-     */
-    function startTimer() {
-        timerInterval = setInterval(() => {
-            timeLeft--;
-            timerEl.textContent = timeLeft;
-            if (timeLeft < 3) {
-                timerEl.classList.add('text-red-500', 'font-extrabold');
-            }
-            if (timeLeft === 0) {
-                selectAnswer(null, null); // Time's up
-            }
-        }, 1000);
-    }
-
-    /**
-     * Handles the user's answer selection or a timeout.
-     */
     function selectAnswer(selectedAnswer, selectedButton) {
-        clearInterval(timerInterval); // Stop the timer immediately
+        if (!isAcceptingInput) return;
+        isAcceptingInput = false;
+
+        clearInterval(timerInterval);
+        const timeTaken = TIME_PER_QUESTION - timeLeft;
+        totalTimeElapsed += timeTaken;
 
         const isCorrect = selectedAnswer === currentCorrectAnswer;
+        if (isCorrect) correctAnswers++;
 
-        // Disable all buttons and show correct/incorrect states
+        // Visual feedback
         const buttons = optionsContainer.querySelectorAll('button');
         buttons.forEach(btn => {
             btn.disabled = true;
-            btn.classList.add('cursor-not-allowed', 'opacity-75');
-
-            // Highlight the correct answer in green
-            if (parseInt(btn.textContent) === currentCorrectAnswer) {
+            const btnValue = parseInt(btn.dataset.value);
+            if (btnValue === currentCorrectAnswer) {
                 btn.classList.remove('bg-gray-100', 'hover:bg-gray-200');
                 btn.classList.add('bg-green-500', 'text-white');
+            } else if (btn === selectedButton) {
+                btn.classList.remove('bg-gray-100', 'hover:bg-gray-200');
+                btn.classList.add('bg-red-500', 'text-white');
             }
         });
 
-        if (isCorrect) {
-            score++;
-            scoreEl.textContent = score;
-            feedbackTextEl.textContent = "Correct! 🎉";
-            feedbackTextEl.classList.add('text-green-600');
-            feedbackTextEl.classList.remove('text-red-600');
-        } else {
-            if(selectedButton) { // If an incorrect answer was clicked
-                selectedButton.classList.remove('bg-gray-100');
-                selectedButton.classList.add('bg-red-500', 'text-white');
-                feedbackTextEl.textContent = `Correct answer: ${currentCorrectAnswer}`;
-            } else { // If the time ran out
-                feedbackTextEl.textContent = `Time's up! Answer: ${currentCorrectAnswer}`;
-            }
-            feedbackTextEl.classList.add('text-red-600');
-            feedbackTextEl.classList.remove('text-green-600');
-        }
+        feedbackTextEl.textContent = `Correct answer: ${currentCorrectAnswer}`;
+        feedbackTextEl.classList.add(isCorrect ? 'text-green-600' : 'text-red-600');
 
-        // Wait 2 seconds before showing the next problem
-        setTimeout(newProblem, 2000);
+        setTimeout(newProblem, 1500);
     }
 
-    // Initial call to start the game
-    newProblem();
+    function endGame() {
+        gameView.classList.add('hidden');
+        resultsView.classList.remove('hidden');
+
+        finalScoreEl.textContent = correctAnswers;
+        finalTimeEl.textContent = (totalTimeElapsed).toFixed(1);
+
+        checkAndSaveHighScore();
+    }
+
+    // --- Timer and High Score Logic ---
+
+    function startTimer() {
+        timerInterval = setInterval(() => {
+            timeLeft -= 0.1;
+            timerEl.textContent = Math.ceil(timeLeft);
+            if (timeLeft <= 2) timerEl.classList.add('text-red-500', 'font-extrabold');
+            if (timeLeft <= 0) selectAnswer(null, null); // Time's up
+        }, 100);
+    }
+
+    function loadHighScore() {
+        const storedScore = JSON.parse(localStorage.getItem('multiplicationHighScore'));
+        if (storedScore) {
+            highScore = storedScore;
+        }
+        updateHighScoreUI();
+    }
+
+    function checkAndSaveHighScore() {
+        const currentAccuracy = correctAnswers;
+        const currentTime = totalTimeElapsed;
+
+        // New high score if accuracy is higher, or if accuracy is same and time is lower
+        if (currentAccuracy > highScore.accuracy || (currentAccuracy === highScore.accuracy && currentTime < highScore.time)) {
+            highScore = { accuracy: currentAccuracy, time: currentTime };
+            localStorage.setItem('multiplicationHighScore', JSON.stringify(highScore));
+            newHighScoreBanner.classList.remove('hidden');
+        }
+        updateHighScoreUI();
+    }
+
+    function updateHighScoreUI() {
+        if (highScore.accuracy > 0) {
+            const scoreText = `${highScore.accuracy}/${TOTAL_PROBLEMS} in ${highScore.time.toFixed(1)}s`;
+            highScoreDisplay.textContent = scoreText;
+            finalHighScoreDisplay.textContent = scoreText;
+        } else {
+            highScoreDisplay.textContent = 'N/A';
+            finalHighScoreDisplay.textContent = 'N/A';
+        }
+    }
+
+    // --- Event Listeners ---
+
+    function handleKeyPress(e) {
+        if (isAcceptingInput && e.key >= '1' && e.key <= '5') {
+            const keyIndex = parseInt(e.key) - 1;
+            const buttons = optionsContainer.querySelectorAll('button');
+            if (buttons[keyIndex]) {
+                buttons[keyIndex].classList.add('active-key'); // Visual press effect
+                const answerValue = parseInt(buttons[keyIndex].dataset.value);
+                selectAnswer(answerValue, buttons[keyIndex]);
+            }
+        }
+    }
+
+    document.addEventListener('keydown', handleKeyPress);
+    playAgainButton.addEventListener('click', startGame);
+
+    // --- Initial Load ---
+    startGame();
 </script>
 </body>
 </html>
